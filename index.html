@@ -1,0 +1,137 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>File Count Dashboard — SPOSite vs COBSite</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f1117;color:#e2e8f0;font-family:'Segoe UI',sans-serif;font-size:14px;padding:24px}
+h1{font-size:1.6rem;color:#f8fafc;margin-bottom:4px}
+.subtitle{color:#94a3b8;margin-bottom:24px;font-size:.85rem}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{background:#1a1d27;border-radius:12px;padding:20px;border:1px solid #2d3148}
+.panel.spo{border-top:3px solid #3b82f6}
+.panel.cob{border-top:3px solid #f59e0b}
+.panel h2{font-size:.95rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-spo{background:#3b82f6}
+.dot-cob{background:#f59e0b}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+.card{background:#0f1117;border-radius:8px;padding:12px;border:1px solid #2d3148}
+.card-label{font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.card-value{font-size:1.2rem;font-weight:700;color:#f8fafc}
+.card-sub{font-size:.7rem;color:#64748b;margin-top:2px}
+.chart-wrap{margin-bottom:16px}
+.chart-wrap h3{font-size:.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+canvas{max-height:200px}
+.full{grid-column:1/-1}
+.combined{background:#1a1d27;border-radius:12px;padding:20px;border:1px solid #2d3148;margin-bottom:20px}
+.combined h2{font-size:.95rem;font-weight:700;margin-bottom:16px;color:#f8fafc}
+</style></head><body>
+
+<h1>File Count — SPOSite vs COBSite</h1>
+<p class="subtitle">Monthly Average (7-day rolling max) · Apr 2025 – May 2026 · Source: SPO_FileCountSegmentedByFarm</p>
+
+<div class="combined">
+  <h2>Combined: Actuals &amp; MoM Growth</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div><div class="chart-wrap"><h3>Total Files (Billion)</h3><canvas id="c-combined-actuals"></canvas></div></div>
+    <div><div class="chart-wrap"><h3>MoM Growth (Billion files added)</h3><canvas id="c-combined-mom"></canvas></div></div>
+  </div>
+</div>
+
+<div class="cols">
+
+  <!-- SPOSite -->
+  <div class="panel spo">
+    <h2><span class="dot dot-spo"></span>SPOSite</h2>
+    <div class="cards">
+      <div class="card"><div class="card-label">Latest</div><div class="card-value">3078B</div><div class="card-sub">May 2026</div></div>
+      <div class="card"><div class="card-label">Growth (13mo)</div><div class="card-value" style="color:#34d399">+20.3%</div><div class="card-sub">2558B → 3078B</div></div>
+      <div class="card"><div class="card-label">Avg MoM</div><div class="card-value">+40B</div><div class="card-sub">per month</div></div>
+    </div>
+    <div class="chart-wrap"><h3>Actuals (Billion files)</h3><canvas id="c-spo-actual"></canvas></div>
+    <div class="chart-wrap"><h3>MoM Growth (Billion)</h3><canvas id="c-spo-momB"></canvas></div>
+    <div class="chart-wrap"><h3>MoM Growth (%)</h3><canvas id="c-spo-momPct"></canvas></div>
+  </div>
+
+  <!-- COBSite -->
+  <div class="panel cob">
+    <h2><span class="dot dot-cob"></span>COBSite</h2>
+    <div class="cards">
+      <div class="card"><div class="card-label">Latest</div><div class="card-value">2408B</div><div class="card-sub">May 2026</div></div>
+      <div class="card"><div class="card-label">Growth (13mo)</div><div class="card-value" style="color:#34d399">+62.8%</div><div class="card-sub">1479B → 2408B</div></div>
+      <div class="card"><div class="card-label">Avg MoM</div><div class="card-value">+71B</div><div class="card-sub">per month</div></div>
+    </div>
+    <div class="chart-wrap"><h3>Actuals (Billion files)</h3><canvas id="c-cob-actual"></canvas></div>
+    <div class="chart-wrap"><h3>MoM Growth (Billion)</h3><canvas id="c-cob-momB"></canvas></div>
+    <div class="chart-wrap"><h3>MoM Growth (%)</h3><canvas id="c-cob-momPct"></canvas></div>
+  </div>
+
+</div>
+
+<script>
+const LABELS = ['2025-04','2025-05','2025-06','2025-07','2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05'];
+const SPO    = [2558,2587,2600,2639,2684,2731,2776,2816,2870,2908,2954,3003,3056,3078];
+const COB    = [1479,1678,1797,1868,1923,1979,2041,2175,2229,2283,2318,2350,2389,2408];
+const SPO_MOMB   = [null,29,13,39,45,47,45,40,54,38,46,49,53,22];
+const COB_MOMB   = [null,199,119,71,55,56,62,134,54,54,35,32,39,19];
+const SPO_MOMPCT = [null,1.13,0.5,1.5,1.71,1.75,1.65,1.44,1.92,1.32,1.58,1.66,1.76,0.72];
+const COB_MOMPCT = [null,13.46,7.09,3.95,2.94,2.91,3.13,6.57,2.48,2.42,1.53,1.38,1.66,0.8];
+
+Chart.register(ChartDataLabels);
+const gc='rgba(255,255,255,0.06)', tc='#94a3b8';
+const blue='#3b82f6', amber='#f59e0b', green='#34d399', blueA='rgba(59,130,246,0.15)', amberA='rgba(245,158,11,0.15)';
+
+const baseX = {ticks:{color:tc,maxRotation:45,font:{size:10}},grid:{color:gc}};
+const baseY = {ticks:{color:tc},grid:{color:gc}};
+const baseLegend = {labels:{color:tc,font:{size:11}}};
+
+const dlBase = {color:'#e2e8f0',font:{size:10,weight:'600'},anchor:'end',align:'top',formatter:v=>v===null?'':v};
+const dlPct  = {...dlBase,formatter:v=>v===null?'':v+'%'};
+const dlB    = {...dlBase,formatter:v=>v===null?'':v+'B'};
+const noLabels = {datalabels:{display:false}};
+
+// Combined actuals
+new Chart(document.getElementById('c-combined-actuals'),{type:'line',data:{labels:LABELS,datasets:[
+  {label:'SPOSite',data:SPO,borderColor:blue,backgroundColor:blueA,borderWidth:2,pointRadius:2,tension:.3,fill:true,datalabels:{...dlB,color:blue,align:'top'}},
+  {label:'COBSite',data:COB,borderColor:amber,backgroundColor:amberA,borderWidth:2,pointRadius:2,tension:.3,fill:true,datalabels:{...dlB,color:amber,align:'bottom'}}
+]},options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:baseLegend},scales:{x:baseX,y:{...baseY,ticks:{color:tc,callback:v=>v+'B'}}}}});
+
+// Combined MoM
+new Chart(document.getElementById('c-combined-mom'),{type:'line',data:{labels:LABELS,datasets:[
+  {label:'SPOSite MoM',data:SPO_MOMB,borderColor:blue,backgroundColor:'transparent',borderWidth:2,pointRadius:4,tension:.3,datalabels:{...dlB,color:blue}},
+  {label:'COBSite MoM',data:COB_MOMB,borderColor:amber,backgroundColor:'transparent',borderWidth:2,pointRadius:4,tension:.3,datalabels:{...dlB,color:amber}}
+]},options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:baseLegend},scales:{x:baseX,y:{...baseY,ticks:{color:tc,callback:v=>v+'B'}}}}});
+
+// SPO actuals
+new Chart(document.getElementById('c-spo-actual'),{type:'line',data:{labels:LABELS,datasets:[
+  {label:'SPOSite',data:SPO,borderColor:blue,backgroundColor:blueA,borderWidth:2,pointRadius:2,tension:.3,fill:true,datalabels:{...dlB,color:blue}}
+]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:baseX,y:{...baseY,ticks:{color:tc,callback:v=>v+'B'}}}}});
+
+// SPO MoM absolute
+const spoMomColors = SPO_MOMB.map(v=>v===null?'transparent':v>=50?green+'cc':v>=30?blue+'cc':blue+'88');
+new Chart(document.getElementById('c-spo-momB'),{type:'bar',data:{labels:LABELS,datasets:[
+  {label:'MoM (B)',data:SPO_MOMB,backgroundColor:spoMomColors,borderRadius:3,datalabels:{...dlB,color:'#e2e8f0'}}
+]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:baseX,y:{...baseY,ticks:{color:tc,callback:v=>v+'B'}}}}});
+
+// SPO MoM pct
+new Chart(document.getElementById('c-spo-momPct'),{type:'line',data:{labels:LABELS,datasets:[
+  {label:'MoM %',data:SPO_MOMPCT,borderColor:blue,backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:.3,datalabels:{...dlPct,color:blue}}
+]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:baseX,y:{...baseY,ticks:{color:tc,callback:v=>v+'%'}}}}});
+
+// COB actuals
+new Chart(document.getElementById('c-cob-actual'),{type:'line',data:{labels:LABELS,datasets:[
+  {label:'COBSite',data:COB,borderColor:amber,backgroundColor:amberA,borderWidth:2,pointRadius:2,tension:.3,fill:true,datalabels:{...dlB,color:amber}}
+]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:baseX,y:{...baseY,ticks:{color:tc,callback:v=>v+'B'}}}}});
+
+// COB MoM absolute
+const cobMomColors = COB_MOMB.map(v=>v===null?'transparent':v>=100?green+'cc':v>=60?amber+'cc':amber+'88');
+new Chart(document.getElementById('c-cob-momB'),{type:'bar',data:{labels:LABELS,datasets:[
+  {label:'MoM (B)',data:COB_MOMB,backgroundColor:cobMomColors,borderRadius:3,datalabels:{...dlB,color:'#e2e8f0'}}
+]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:baseX,y:{...baseY,ticks:{color:tc,callback:v=>v+'B'}}}}});
+
+// COB MoM pct
+new Chart(document.getElementById('c-cob-momPct'),{type:'line',data:{labels:LABELS,datasets:[
+  {label:'MoM %',data:COB_MOMPCT,borderColor:amber,backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:.3,datalabels:{...dlPct,color:amber}}
+]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:baseX,y:{...baseY,ticks:{color:tc,callback:v=>v+'%'}}}}});
+</script></body></html>
